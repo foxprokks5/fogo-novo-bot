@@ -1,7 +1,7 @@
 const {
     Client, GatewayIntentBits, PermissionsBitField, ChannelType,
     ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle,
-    EmbedBuilder
+    EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle
 } = require("discord.js");
 require("dotenv").config();
 
@@ -18,63 +18,185 @@ const client = new Client({
     ]
 });
 
+// ================= CONFIGURAÇÕES ================= //
 const SEU_ID = process.env.SEU_ID;
 const ID_DONO_AMIGO = process.env.ID_DONO_AMIGO;
-const CATEGORIA_TICKET = process.env.CATEGORIA_TICKET;
-const CARGO_STAFF = process.env.CARGO_STAFF;
+let CONFIG = {
+    categoria: process.env.CATEGORIA_TICKET || null,
+    cargoStaff: process.env.CARGO_STAFF || null,
+    canalLogs: null,
+    descricaoPersonalizada: null,
+    imagemPersonalizada: 'https://cdn.discordapp.com/attachments/1518637940165705769/1531036105724395610/4CB55608-1D10-43A1-B689-5913B9667961.png?ex=6a67bffc&is=6a666e7c&hm=181750bad875b390de1a22c25d933317d44e032457d2cf5d9dcf5c26185f7647&'
+};
 
 client.once("ready", () => console.log(`✅ 🔥 ${client.user.tag} | Fogo Novo #100 ONLINE!`));
 
 client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.guild) return;
+
+    // ✅ COMANDO !PAINEL AGORA É O MENU DE CONFIGURAÇÃO
     if (message.content.toLowerCase() === "!painel") {
-        if (message.author.id !== SEU_ID && message.author.id !== ID_DONO_AMIGO)
-            return message.reply("❌ Apenas os donos podem usar esse comando!");
+        if (message.author.id !== SEU_ID && message.author.id !== ID_DONO_AMIGO) {
+            return message.reply("❌ Apenas os donos do servidor podem usar esse comando!");
+        }
 
-        const painelEmbed = new EmbedBuilder()
+        const embConfig = new EmbedBuilder()
             .setColor('#FF4500')
-            .setTitle('🎫 Sistema de Tickets | Fogo Novo #100')
-            .setDescription(`Bem-vindo ao sistema de tickets do Fogo Novo #100! 🔥
+            .setTitle('⚙️ Configuração do Sistema de Tickets')
+            .setDescription(`Configure tudo como quiser:
 
-Este bot foi criado para oferecer um atendimento rápido, organizado e seguro.
+📝 **Descrição + Imagem**
+Altere o texto e a imagem do painel principal.
 
-O que você pode fazer:
-* 🛒 Compras
-* 💸 Vendas
-* 🆘 Suporte
-* 🤝 Parcerias
-* ❗ Denúncias
-* ❓ Dúvidas
+👥 **Cargos + Categoria**
+Defina onde os tickets serão criados e quem pode atender.
 
-Selecione a opção abaixo e aguarde.
+📋 **Sistema de Logs**
+Escolha um canal para registrar todas as ações.
 
-⚠️ Não abra tickets sem necessidade. O uso indevido terá punições.
+📤 **Enviar Painel**
+Após configurar tudo, clique aqui para enviar o painel de atendimento no canal.
 
-Obrigado por usar o atendimento do Fogo Novo #100!`)
-            .setImage('https://cdn.discordapp.com/attachments/1518637940165705769/1531036105724395610/4CB55608-1D10-43A1-B689-5913B9667961.png?ex=6a67bffc&is=6a666e7c&hm=181750bad875b390de1a22c25d933317d44e032457d2cf5d9dcf5c26185f7647&');
+⚠️ Apenas os donos podem alterar essas configurações.`);
 
-        const menu = new ActionRowBuilder().addComponents(
+        const menuConfig = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
-                .setCustomId('menu_ticket')
-                .setPlaceholder('📋 Selecione a opção desejada')
+                .setCustomId('menu_config')
+                .setPlaceholder('🔧 Escolha o que deseja configurar')
                 .addOptions([
-                    { label: '💳 Compras', value: 'compras' },
-                    { label: '💰 Vendas', value: 'vendas' },
-                    { label: '🆘 Suporte', value: 'suporte' },
-                    { label: '🤝 Parcerias', value: 'parcerias' },
-                    { label: '❗ Denúncias', value: 'denuncias' },
-                    { label: '❓ Dúvidas', value: 'duvidas' }
+                    { label: '📝 Descrição + Imagem', value: 'descricao_imagem', emoji: '📝' },
+                    { label: '👥 Cargos + Categoria', value: 'cargo_categoria', emoji: '👥' },
+                    { label: '📋 Sistema de Logs', value: 'logs', emoji: '📋' },
+                    { label: '📤 Enviar Painel', value: 'enviar_painel', emoji: '📤' }
                 ])
         );
 
-        await message.channel.send({ embeds: [painelEmbed], components: [menu] });
+        await message.channel.send({ embeds: [embConfig], components: [menuConfig] });
     }
 });
 
 client.on("interactionCreate", async (interaction) => {
     try {
+        // 🎛️ MENU DE CONFIGURAÇÃO
+        if (interaction.isStringSelectMenu() && interaction.customId === 'menu_config') {
+            await interaction.deferUpdate();
+            const opcao = interaction.values[0];
+
+            if (opcao === 'descricao_imagem') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_descricao')
+                    .setTitle('📝 Descrição e Imagem')
+                    .addComponents(
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder().setCustomId('texto').setLabel('Texto do Painel').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('Deixe em branco para usar o padrão.')
+                        ),
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder().setCustomId('imagem').setLabel('Link da Imagem').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Link direto da imagem.')
+                        )
+                    );
+                return interaction.showModal(modal);
+            }
+
+            if (opcao === 'cargo_categoria') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_cargos')
+                    .setTitle('👥 Categoria e Cargos')
+                    .addComponents(
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder().setCustomId('categoria').setLabel('ID da Categoria').setStyle(TextInputStyle.Short).setRequired(true).setValue(CONFIG.categoria || '')
+                        ),
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder().setCustomId('staff').setLabel('ID do Cargo Staff').setStyle(TextInputStyle.Short).setRequired(true).setValue(CONFIG.cargoStaff || '')
+                        )
+                    );
+                return interaction.showModal(modal);
+            }
+
+            if (opcao === 'logs') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_logs')
+                    .setTitle('📋 Canal de Logs')
+                    .addComponents(
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder().setCustomId('canal').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(false).setValue(CONFIG.canalLogs || '')
+                        )
+                    );
+                return interaction.showModal(modal);
+            }
+
+            if (opcao === 'enviar_painel') {
+                if (!CONFIG.categoria || !CONFIG.cargoStaff) {
+                    return interaction.followUp({ content: "❌ Primeiro configure a **Categoria** e o **Cargo Staff**!", ephemeral: true });
+                }
+
+                const textoFinal = CONFIG.descricaoPersonalizada || `Bem-vindo ao sistema de tickets do Fogo Novo #100! 🔥
+
+Este bot foi criado para oferecer um atendimento rápido, organizado e seguro.
+
+O que você pode fazer:
+* 🛒 Abrir tickets de Compras.
+* 💸 Abrir tickets de Vendas.
+* 🆘 Solicitar Suporte.
+* 🤝 Pedir Parcerias.
+* 📢 Fazer Denúncias.
+* ❓ Tirar Dúvidas.
+
+Selecione a categoria desejada e aguarde um membro da equipe atendê-lo.
+
+⚠️ Não abra tickets sem necessidade. O uso indevido do sistema poderá resultar em punições.
+
+Obrigado por utilizar o sistema de atendimento do Fogo Novo #100!`;
+
+                const painelFinal = new EmbedBuilder()
+                    .setColor('#FF4500')
+                    .setTitle('🎫 Sistema de Tickets | Fogo Novo #100')
+                    .setDescription(textoFinal)
+                    .setImage(CONFIG.imagemPersonalizada);
+
+                const menuTicket = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('menu_ticket')
+                        .setPlaceholder('📋 Selecione a opção desejada')
+                        .addOptions([
+                            { label: '💳 Compras', value: 'compras' },
+                            { label: '💰 Vendas', value: 'vendas' },
+                            { label: '🆘 Suporte', value: 'suporte' },
+                            { label: '🤝 Parcerias', value: 'parcerias' },
+                            { label: '❗ Denúncias', value: 'denuncias' },
+                            { label: '❓ Dúvidas', value: 'duvidas' }
+                        ])
+                );
+
+                await interaction.channel.send({ embeds: [painelFinal], components: [menuTicket] });
+                return interaction.followUp({ content: "✅ Painel de atendimento enviado com sucesso!", ephemeral: true });
+            }
+        }
+
+        // 📝 RECEBE DADOS DOS MODAIS
+        if (interaction.isModalSubmit()) {
+            await interaction.deferUpdate();
+
+            if (interaction.customId === 'modal_descricao') {
+                CONFIG.descricaoPersonalizada = interaction.fields.getTextInputValue('texto') || null;
+                const img = interaction.fields.getTextInputValue('imagem');
+                if(img) CONFIG.imagemPersonalizada = img;
+                return interaction.followUp({ content: "✅ Descrição e imagem atualizadas!", ephemeral: true });
+            }
+
+            if (interaction.customId === 'modal_cargos') {
+                CONFIG.categoria = interaction.fields.getTextInputValue('categoria');
+                CONFIG.cargoStaff = interaction.fields.getTextInputValue('staff');
+                return interaction.followUp({ content: "✅ Categoria e cargos salvos!", ephemeral: true });
+            }
+
+            if (interaction.customId === 'modal_logs') {
+                CONFIG.canalLogs = interaction.fields.getTextInputValue('canal') || null;
+                return interaction.followUp({ content: "✅ Canal de logs configurado!", ephemeral: true });
+            }
+        }
+
+        // 🎫 MENU DE TICKET (FUNCIONA IGUAL ANTES, MAIS RÁPIDO)
         if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
-            // ✅ RESPOSTA INSTANTÂNEA — NÃO FICA PENSANDO
             await interaction.reply({ content: "🔄 Criando seu ticket...", ephemeral: true });
 
             const nomes = {
@@ -83,26 +205,23 @@ client.on("interactionCreate", async (interaction) => {
             };
             const escolha = interaction.values[0];
 
-            // Verifica ticket existente
             const existe = interaction.guild.channels.cache.find(c =>
-                c.parentId === CATEGORIA_TICKET && c.topic === interaction.user.id
+                c.parentId === CONFIG.categoria && c.topic === interaction.user.id
             );
             if (existe) return interaction.editReply({ content: `❌ Você já tem um ticket aberto: ${existe}` });
 
-            // CRIA O CANAL — O MAIS RÁPIDO POSSÍVEL
             const canal = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username.toLowerCase()}`,
                 type: ChannelType.GuildText,
-                parent: CATEGORIA_TICKET,
+                parent: CONFIG.categoria,
                 topic: interaction.user.id,
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
-                    { id: CARGO_STAFF, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                    { id: CONFIG.cargoStaff, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                 ]
             });
 
-            // Envia mensagem no ticket
             await canal.send({
                 content: `# 🎫 Novo Ticket — ${nomes[escolha]}
 
@@ -116,14 +235,13 @@ client.on("interactionCreate", async (interaction) => {
                 )]
             });
 
-            // Confirma na hora
             await interaction.editReply({ content: `✅ Ticket criado! ${canal}` });
         }
 
-        // BOTÕES
+        // 🎯 BOTÕES
         if (!interaction.isButton()) return;
         await interaction.deferUpdate();
-        const eStaff = interaction.member.roles.cache.has(CARGO_STAFF);
+        const eStaff = interaction.member.roles.cache.has(CONFIG.cargoStaff);
 
         if (interaction.customId === 'atender') {
             if (!eStaff) return interaction.followUp({ content: "❌ Apenas a equipe!", ephemeral: true });
@@ -150,4 +268,4 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(process.env.TOKEN);
-            
+    
