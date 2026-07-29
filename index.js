@@ -5,10 +5,10 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-// ✅ Correção para o Render não dar tempo esgotado
+// ✅ Mantém o Render online sem erro de tempo
 const express = require('express');
 const app = express();
-app.get('/', (req, res) => res.send('🔥 Fogo Novo Ticket Ativo!'));
+app.get('/', (req, res) => res.send('🔥 Fogo Novo Ticket | ONLINE!'));
 app.listen(3000);
 
 const client = new Client({
@@ -19,23 +19,22 @@ const client = new Client({
     ]
 });
 
-// ================= CONFIGURAÇÕES ================= //
+// ================= CONFIGURAÇÕES (TUDO NO .env) ================= //
 const SEU_ID = process.env.SEU_ID;
 const ID_DONO_AMIGO = process.env.ID_DONO_AMIGO;
 const CATEGORIA_TICKET = process.env.CATEGORIA_TICKET;
 const CARGO_STAFF = process.env.CARGO_STAFF;
 
 client.once("ready", () => {
-    console.log(`✅ 🔥 ${client.user.tag} está online no Fogo Novo!`);
+    console.log(`✅ 🔥 ${client.user.tag} | Fogo Novo #100 ONLINE!`);
 });
 
 client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    // Comando só você e seu amigo podem usar
     if (message.content.toLowerCase() === "!painel") {
         if (message.author.id !== SEU_ID && message.author.id !== ID_DONO_AMIGO) {
-            return message.reply("❌ Apenas os donos podem usar esse comando!");
+            return message.reply("❌ Apenas os donos do servidor podem usar esse comando!");
         }
 
         const painelEmbed = new EmbedBuilder()
@@ -79,26 +78,28 @@ Obrigado por utilizar o sistema de atendimento do Fogo Novo #100!`)
 });
 
 client.on("interactionCreate", async (interaction) => {
-    // Menu de seleção
-    if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
-        const valor = interaction.values[0];
-        const nomes = {
-            compras: '💳 Compras',
-            vendas: '💰 Vendas',
-            suporte: '🆘 Suporte',
-            parcerias: '🤝 Parcerias',
-            denuncias: '❗ Denúncias',
-            duvidas: '❓ Dúvidas'
-        };
+    try {
+        // 📋 MENU DE SELEÇÃO
+        if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
+            await interaction.deferUpdate(); // ✅ Responde rápido para não dar erro de tempo
 
-        const existe = interaction.guild.channels.cache.find(c =>
-            c.parentId === CATEGORIA_TICKET && c.topic === interaction.user.id
-        );
-        if (existe) {
-            return interaction.reply({ content: `❌ Você já tem um ticket aberto: ${existe}`, ephemeral: true });
-        }
+            const valor = interaction.values[0];
+            const nomes = {
+                compras: '💳 Compras',
+                vendas: '💰 Vendas',
+                suporte: '🆘 Suporte',
+                parcerias: '🤝 Parcerias',
+                denuncias: '❗ Denúncias',
+                duvidas: '❓ Dúvidas'
+            };
 
-        try {
+            const existe = interaction.guild.channels.cache.find(c =>
+                c.parentId === CATEGORIA_TICKET && c.topic === interaction.user.id
+            );
+            if (existe) {
+                return interaction.followUp({ content: `❌ Você já tem um ticket aberto: ${existe}`, ephemeral: true });
+            }
+
             const canal = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username.toLowerCase()}`,
                 type: ChannelType.GuildText,
@@ -126,38 +127,46 @@ client.on("interactionCreate", async (interaction) => {
                 components: [botoes]
             });
 
-            await interaction.reply({ content: `✅ Ticket criado com sucesso! ${canal}`, ephemeral: true });
-        } catch (erro) {
-            console.error(erro);
-            await interaction.reply({ content: "❌ Erro ao criar ticket!", ephemeral: true });
+            await interaction.followUp({ content: `✅ Ticket criado com sucesso! ${canal}`, ephemeral: true });
         }
-    }
 
-    // Botões
-    if (!interaction.isButton()) return;
-    const eStaff = interaction.member.roles.cache.has(CARGO_STAFF);
+        // 🎯 BOTÕES
+        if (!interaction.isButton()) return;
+        await interaction.deferUpdate(); // ✅ Também responde rápido
 
-    if (interaction.customId === 'atender') {
-        if (!eStaff) return interaction.reply({ content: "❌ Apenas a equipe pode atender!", ephemeral: true });
-        const botoes = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('atender').setLabel(`✅ Atendido por ${interaction.user.username}`).setStyle(ButtonStyle.Success).setDisabled(true),
-            new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger)
-        );
-        await interaction.update({
-            content: `# 👮 Ticket em Atendimento
+        const eStaff = interaction.member.roles.cache.has(CARGO_STAFF);
+
+        if (interaction.customId === 'atender') {
+            if (!eStaff) return interaction.followUp({ content: "❌ Apenas a equipe autorizada pode atender tickets!", ephemeral: true });
+
+            const botoes = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('atender').setLabel(`✅ Atendido por ${interaction.user.username}`).setStyle(ButtonStyle.Success).setDisabled(true),
+                new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger)
+            );
+
+            await interaction.editReply({
+                content: `# 👮 Ticket em Atendimento
 
 **Responsável:** ${interaction.user}
 
-Aguarde enquanto analisamos o seu caso.`,
-            components: [botoes]
-        });
-    }
+O atendimento foi assumido. Agradecemos a paciência!`,
+                components: [botoes]
+            });
+        }
 
-    if (interaction.customId === 'fechar') {
-        if (!eStaff) return interaction.reply({ content: "❌ Apenas a equipe pode fechar!", ephemeral: true });
-        await interaction.reply({ content: "🔒 Fechando em 3 segundos..." });
-        setTimeout(() => interaction.channel.delete().catch(()=>{}), 3000);
+        if (interaction.customId === 'fechar') {
+            if (!eStaff) return interaction.followUp({ content: "❌ Apenas a equipe autorizada pode fechar tickets!", ephemeral: true });
+            await interaction.followUp({ content: "🔒 Este ticket será fechado em 3 segundos..." });
+            setTimeout(() => interaction.channel.delete().catch(()=>{}), 3000);
+        }
+
+    } catch (erro) {
+        console.error('ERRO:', erro);
+        if (!interaction.replied && !interaction.deferred) {
+            interaction.reply({ content: "❌ Ocorreu um erro, tente novamente ou avise a equipe!", ephemeral: true }).catch(()=>{});
+        }
     }
 });
 
 client.login(process.env.TOKEN);
+                            
