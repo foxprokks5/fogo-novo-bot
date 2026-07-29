@@ -5,7 +5,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-// Mantém o Render online
+// Servidor para o Render não dar tempo esgotado
 const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.send('🔥 Fogo Novo Ticket | ONLINE!'));
@@ -79,9 +79,10 @@ Obrigado por utilizar o sistema de atendimento do Fogo Novo #100!`)
 
 client.on("interactionCreate", async (interaction) => {
     try {
-        // 📋 MENU DE SELEÇÃO — CORRIGIDO PARA CRIAR O TICKET
+        // 📋 MENU DE SELEÇÃO — RESPOSTA INSTANTÂNEA
         if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
-            await interaction.deferReply({ ephemeral: true });
+            // ✅ Responde imediatamente para o Discord não mostrar "pensando"
+            await interaction.reply({ content: "🔄 Criando seu ticket...", ephemeral: true });
 
             const valor = interaction.values[0];
             const nomes = {
@@ -169,4 +170,4 @@ O atendimento foi assumido. Agradecemos a paciência!`,
 });
 
 client.login(process.env.TOKEN);
-            
+                            
