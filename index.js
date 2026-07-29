@@ -5,7 +5,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-// ✅ Mantém o Render online sem erro de tempo
+// Mantém o Render online
 const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.send('🔥 Fogo Novo Ticket | ONLINE!'));
@@ -19,7 +19,7 @@ const client = new Client({
     ]
 });
 
-// ================= CONFIGURAÇÕES (TUDO NO .env) ================= //
+// ================= CONFIGURAÇÕES ================= //
 const SEU_ID = process.env.SEU_ID;
 const ID_DONO_AMIGO = process.env.ID_DONO_AMIGO;
 const CATEGORIA_TICKET = process.env.CATEGORIA_TICKET;
@@ -79,9 +79,9 @@ Obrigado por utilizar o sistema de atendimento do Fogo Novo #100!`)
 
 client.on("interactionCreate", async (interaction) => {
     try {
-        // 📋 MENU DE SELEÇÃO
+        // 📋 MENU DE SELEÇÃO — CORRIGIDO PARA CRIAR O TICKET
         if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
-            await interaction.deferUpdate(); // ✅ Responde rápido para não dar erro de tempo
+            await interaction.deferReply({ ephemeral: true });
 
             const valor = interaction.values[0];
             const nomes = {
@@ -97,7 +97,7 @@ client.on("interactionCreate", async (interaction) => {
                 c.parentId === CATEGORIA_TICKET && c.topic === interaction.user.id
             );
             if (existe) {
-                return interaction.followUp({ content: `❌ Você já tem um ticket aberto: ${existe}`, ephemeral: true });
+                return interaction.editReply({ content: `❌ Você já tem um ticket aberto: ${existe}` });
             }
 
             const canal = await interaction.guild.channels.create({
@@ -127,12 +127,12 @@ client.on("interactionCreate", async (interaction) => {
                 components: [botoes]
             });
 
-            await interaction.followUp({ content: `✅ Ticket criado com sucesso! ${canal}`, ephemeral: true });
+            await interaction.editReply({ content: `✅ Ticket criado com sucesso! ${canal}` });
         }
 
         // 🎯 BOTÕES
         if (!interaction.isButton()) return;
-        await interaction.deferUpdate(); // ✅ Também responde rápido
+        await interaction.deferUpdate();
 
         const eStaff = interaction.member.roles.cache.has(CARGO_STAFF);
 
@@ -163,10 +163,10 @@ O atendimento foi assumido. Agradecemos a paciência!`,
     } catch (erro) {
         console.error('ERRO:', erro);
         if (!interaction.replied && !interaction.deferred) {
-            interaction.reply({ content: "❌ Ocorreu um erro, tente novamente ou avise a equipe!", ephemeral: true }).catch(()=>{});
+            interaction.reply({ content: "❌ Ocorreu um erro, tente novamente!", ephemeral: true }).catch(()=>{});
         }
     }
 });
 
 client.login(process.env.TOKEN);
-                            
+            
