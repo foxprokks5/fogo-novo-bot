@@ -73,7 +73,7 @@ Após configurar tudo, clique aqui para enviar o painel de atendimento.
 
 client.on("interactionCreate", async (interaction) => {
     try {
-        // 🎛️ MENU DE CONFIGURAÇÃO — AGORA ABRE AS JANELAS CERTAS
+        // 🎛️ MENU DE CONFIGURAÇÃO
         if (interaction.isStringSelectMenu() && interaction.customId === 'menu_config') {
             const opcao = interaction.values[0];
 
@@ -83,23 +83,13 @@ client.on("interactionCreate", async (interaction) => {
                     .setTitle('📝 Descrição e Imagem')
                     .addComponents(
                         new ActionRowBuilder().addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('texto')
-                                .setLabel('Texto do Painel')
-                                .setStyle(TextInputStyle.Paragraph)
-                                .setRequired(false)
-                                .setPlaceholder('Deixe em branco para usar o padrão.')
+                            new TextInputBuilder().setCustomId('texto').setLabel('Texto do Painel').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('Deixe em branco para usar o padrão.')
                         ),
                         new ActionRowBuilder().addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('imagem')
-                                .setLabel('Link da Imagem')
-                                .setStyle(TextInputStyle.Short)
-                                .setRequired(false)
-                                .setPlaceholder('Link direto da imagem.')
+                            new TextInputBuilder().setCustomId('imagem').setLabel('Link da Imagem').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Link direto da imagem.')
                         )
                     );
-                return interaction.showModal(modal); // ✅ Abre a janela direto
+                return interaction.showModal(modal);
             }
 
             if (opcao === 'cargo_categoria') {
@@ -108,23 +98,13 @@ client.on("interactionCreate", async (interaction) => {
                     .setTitle('👥 Categoria e Cargos')
                     .addComponents(
                         new ActionRowBuilder().addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('categoria')
-                                .setLabel('ID da Categoria')
-                                .setStyle(TextInputStyle.Short)
-                                .setRequired(true)
-                                .setValue(CONFIG.categoria || '')
+                            new TextInputBuilder().setCustomId('categoria').setLabel('ID da Categoria').setStyle(TextInputStyle.Short).setRequired(true).setValue(CONFIG.categoria || '')
                         ),
                         new ActionRowBuilder().addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('staff')
-                                .setLabel('ID do Cargo Staff')
-                                .setStyle(TextInputStyle.Short)
-                                .setRequired(true)
-                                .setValue(CONFIG.cargoStaff || '')
+                            new TextInputBuilder().setCustomId('staff').setLabel('ID do Cargo Staff').setStyle(TextInputStyle.Short).setRequired(true).setValue(CONFIG.cargoStaff || '')
                         )
                     );
-                return interaction.showModal(modal); // ✅ Abre a janela direto
+                return interaction.showModal(modal);
             }
 
             if (opcao === 'logs') {
@@ -133,21 +113,16 @@ client.on("interactionCreate", async (interaction) => {
                     .setTitle('📋 Canal de Logs')
                     .addComponents(
                         new ActionRowBuilder().addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('canal')
-                                .setLabel('ID do Canal de Logs')
-                                .setStyle(TextInputStyle.Short)
-                                .setRequired(false)
-                                .setValue(CONFIG.canalLogs || '')
+                            new TextInputBuilder().setCustomId('canal').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(false).setValue(CONFIG.canalLogs || '')
                         )
                     );
-                return interaction.showModal(modal); // ✅ Abre a janela direto
+                return interaction.showModal(modal);
             }
 
             if (opcao === 'enviar_painel') {
                 await interaction.deferReply({ ephemeral: true });
                 if (!CONFIG.categoria || !CONFIG.cargoStaff) {
-                    return interaction.editReply({ content: "❌ Primeiro configure a **Categoria** e o **Cargo Staff**!" });
+                    return interaction.editReply({ content: "⚠️ O sistema ainda não foi configurado!\nPeça para um administrador configurar primeiro ou aguarde." });
                 }
 
                 const textoFinal = CONFIG.descricaoPersonalizada || `Bem-vindo ao sistema de tickets do Fogo Novo #100! 🔥
@@ -191,7 +166,7 @@ Selecione a opção desejada e aguarde.
             }
         }
 
-        // 📝 RECEBE O QUE VOCÊ ESCREVEU NAS JANELAS E SALVA
+        // 📝 SALVA AS CONFIGURAÇÕES
         if (interaction.isModalSubmit()) {
             await interaction.deferReply({ ephemeral: true });
 
@@ -214,9 +189,14 @@ Selecione a opção desejada e aguarde.
             }
         }
 
-        // 🎫 MENU DE TICKET — RÁPIDO E FUNCIONAL
+        // 🎫 CRIAÇÃO DO TICKET — AGORA MARCA O CARGO E AVISA SE NÃO CONFIGURADO
         if (interaction.isStringSelectMenu() && interaction.customId === 'menu_ticket') {
             await interaction.reply({ content: "🔄 Criando seu ticket...", ephemeral: true });
+
+            // ✅ AVISA SE NÃO CONFIGUROU AINDA
+            if (!CONFIG.categoria || !CONFIG.cargoStaff) {
+                return interaction.editReply({ content: "⚠️ O sistema ainda não foi configurado!\nPeça para um administrador configurar primeiro ou aguarde." });
+            }
 
             const nomes = {
                 compras: '💳 Compras', vendas: '💰 Vendas', suporte: '🆘 Suporte',
@@ -241,13 +221,15 @@ Selecione a opção desejada e aguarde.
                 ]
             });
 
+            // ✅ AGORA MARCA O CARGO DA STAFF NA MENSAGEM
             await canal.send({
                 content: `# 🎫 Novo Ticket — ${nomes[escolha]}
 
 👤 Usuário: <@${interaction.user.id}>
 📌 Motivo: ${nomes[escolha]}
+🔔 Equipe: <@&${CONFIG.cargoStaff}>
 
-🔔 Aguardando atendimento...`,
+Aguardando atendimento...`,
                 components: [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('atender').setLabel('👮 Atender').setStyle(ButtonStyle.Success),
                     new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger)
@@ -265,7 +247,7 @@ Selecione a opção desejada e aguarde.
         if (interaction.customId === 'atender') {
             if (!eStaff) return interaction.followUp({ content: "❌ Apenas a equipe!", ephemeral: true });
             await interaction.editReply({
-                content: `# 👮 Ticket em Atendimento\n**Responsável:** ${interaction.user}`,
+                content: `# 👮 Ticket em Atendimento\n**Responsável:** ${interaction.user}\n🔔 Equipe: <@&${CONFIG.cargoStaff}>`,
                 components: [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('atender').setLabel(`✅ Atendido por ${interaction.user.username}`).setStyle(ButtonStyle.Success).setDisabled(true),
                     new ButtonBuilder().setCustomId('fechar').setLabel('🔒 Fechar').setStyle(ButtonStyle.Danger)
